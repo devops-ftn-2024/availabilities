@@ -8,7 +8,6 @@ export interface AccommodationAvailability {
     location: string;
     minCapacity: number;
     maxCapacity: number;
-    availabilities: Availability[];
 }
 
 export interface Reservation {
@@ -23,6 +22,7 @@ export interface Reservation {
 
 export interface Availability {
     _id?: string | ObjectId;
+    accommodationId: string;
     startDate: Date;
     endDate: Date;
     price: number;

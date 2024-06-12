@@ -25,9 +25,10 @@ export class AvailabilityService {
         validateNewAvailability(availability);
         availability.valid = true;
         availability.dateCreated = new Date();
+        availability.accommodationId = accommodationId;
         console.log(`Creating availability for accommodation with id: ${accommodationId}`)
         //to do: doesnt return anything, try successfull message or inserted id
-        return await this.repository.insertNewAvailability(accommodationId, availability);
+        return await this.repository.insertNewAvailability(availability);
     }
 
     public async updateDate(loggedUser: LoggedUser, id: string, accommodationId: string, avaialbilityUpdate: AvailabilityUpdate) {
@@ -39,7 +40,7 @@ export class AvailabilityService {
         if (accommodationAvailability.ownerUsername !== loggedUser.username) {
             throw new ForbiddenError(`User ${loggedUser.username} is not authorized to update availability for accommodation with id: ${accommodationId}`);
         }
-        const availability = accommodationAvailability.availabilities.find(a => a._id.toString() === id);
+        const availability = await this.repository.getAvailability(id);
         if (!availability) {
             throw new NotFoundError(`Availability not found for id: ${id}`);
         }
@@ -60,20 +61,21 @@ export class AvailabilityService {
             throw new ForbiddenError(`User ${loggedUser.username} is not authorized to update availability for accommodation with id: ${accommodationId}`);
         }
     
-        const availability = accommodationAvaialbility.availabilities.find(a => a._id.toString() === id);
+        const availability = await this.repository.getAvailability(id);
         if (!availability) {
             throw new NotFoundError(`Availability not found for id: ${id}`);
         }
         validateAvailabilityPriceUpdate(avaialbilityUpdate);
-        await this.repository.setAsInvalid(id, accommodationId);
+        await this.repository.setAvailabilityAsInvalid(id, accommodationId);
         const newAvailability: Availability = {
+            accommodationId,
             startDate: availability.startDate,
             endDate: availability.endDate,
             price: avaialbilityUpdate.price,
             dateCreated: new Date(),
             valid: true
         };
-        return this.repository.insertNewAvailability(accommodationId, newAvailability);
+        return this.repository.insertNewAvailability(newAvailability);
     }
 
 }
