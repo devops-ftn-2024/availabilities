@@ -1,8 +1,10 @@
+import moment from "moment";
 import { AvailabilityRepository } from "../repository/availability-repository";
 import { Availability, AvailabilityUpdate } from "../types/availability";
-import { ForbiddenError, NotFoundError } from "../types/errors";
+import { BadRequestError, ForbiddenError, NotFoundError } from "../types/errors";
 import { LoggedUser } from "../types/user";
-import { authorizeHost } from "../util/auth";
+import { authorizeGuest, authorizeHost } from "../util/auth";
+import { extractDatesWithPrices } from "../util/availability";
 import { validateAvailabilityDateUpdate, validateAvailabilityPriceUpdate, validateNewAvailability } from "../util/validation";
 
 export class AvailabilityService {
@@ -26,6 +28,8 @@ export class AvailabilityService {
         availability.valid = true;
         availability.dateCreated = new Date();
         availability.accommodationId = accommodationId;
+        availability.startDate = moment.utc(availability.startDate, 'DD-MM-YYYY').toDate();
+        availability.endDate = moment.utc(availability.endDate, 'DD-MM-YYYY').toDate();
         console.log(`Creating availability for accommodation with id: ${accommodationId}`)
         //to do: doesnt return anything, try successfull message or inserted id
         return await this.repository.insertNewAvailability(availability);
@@ -47,8 +51,12 @@ export class AvailabilityService {
         if (!availability.valid) {
             throw new ForbiddenError(`Availability with id ${id} is not valid anymore`);
         }
-        validateAvailabilityDateUpdate(avaialbilityUpdate);
-        return this.repository.updateStartEndDate(id, accommodationId, avaialbilityUpdate);
+       
+        const startDate = moment.utc(avaialbilityUpdate.startDate, 'DD-MM-YYYY');
+        const endDate = moment.utc(avaialbilityUpdate.endDate, 'DD-MM-YYYY');
+        
+        validateAvailabilityDateUpdate(startDate, endDate);
+        return this.repository.updateStartEndDate(id, accommodationId, startDate.toDate(), endDate.toDate());
     }
 
     public async updatePrice(loggedUser: LoggedUser, id: string, accommodationId: string, avaialbilityUpdate: AvailabilityUpdate) {
@@ -69,13 +77,34 @@ export class AvailabilityService {
         await this.repository.setAvailabilityAsInvalid(id, accommodationId);
         const newAvailability: Availability = {
             accommodationId,
-            startDate: availability.startDate,
-            endDate: availability.endDate,
+            startDate: moment.utc(availability.startDate, 'DD-MM-YYYY').toDate(),
+            endDate: moment.utc(availability.endDate, 'DD-MM-YYYY').toDate(),
             price: avaialbilityUpdate.price,
             dateCreated: new Date(),
             valid: true
         };
         return this.repository.insertNewAvailability(newAvailability);
+    }
+
+    public async getAccommodationSlots(loggedUser: LoggedUser, accommodationId: string, startDate: string, endDate: string) {
+        authorizeGuest(loggedUser.role);
+        let startDateMoment: moment.Moment;
+        let endDateMoment: moment.Moment;
+        if (startDate && endDate) {
+            startDateMoment = moment.utc(startDate, 'DD-MM-YYYY');
+            endDateMoment = moment.utc(endDate, 'DD-MM-YYYY');
+        } else {
+            startDateMoment = moment.utc().startOf('month');
+            endDateMoment = moment.utc().endOf('month');
+        }
+
+        if (startDateMoment.isAfter(endDateMoment)) {
+            throw new BadRequestError('startDate must be before endDate');
+        }
+        console.log(`Getting availabilities for accommodation: ${accommodationId}, startDate: ${startDateMoment}, endDate: ${endDateMoment}`);
+        const availabilities = await this.repository.getAvailabilities(accommodationId, startDateMoment.toDate(), endDateMoment.toDate());
+        console.log(`Found ${availabilities.length} availabilities for accommodation: ${accommodationId}. Available slots: ${JSON.stringify(availabilities)}`);
+        return extractDatesWithPrices(availabilities, startDateMoment, endDateMoment);
     }
 
 }
