@@ -16,7 +16,6 @@ env:
 jobs:
   build:
     name: Build Docker image
-    if: false
     runs-on: ubuntu-latest
 
     steps:
