@@ -1,16 +1,16 @@
+import moment from "moment";
 import { AvailabilityUpdate } from "../types/availability";
 import { BadRequestError } from "../types/errors";
 
-export const validateAvailabilityDateUpdate = (availabilityUpdate: AvailabilityUpdate) => {
+export const validateAvailabilityDateUpdate = (startDate: moment.Moment, endDate: moment.Moment) => {
     console.log('checking')
-    console.log(availabilityUpdate)
-    if (!availabilityUpdate.startDate) {
+    if (!startDate) {
         throw new BadRequestError('startDate is required');
     }
-    if (!availabilityUpdate.endDate) {
+    if (!endDate) {
         throw new BadRequestError('endDate is required');
     }
-    if (availabilityUpdate.startDate > availabilityUpdate.endDate) {
+    if (startDate.isAfter(endDate)) {
         throw new BadRequestError('startDate must be before endDate');
     }
 }
@@ -29,6 +29,8 @@ export const validateAvailabilityPriceUpdate = (availabilityUpdate: Availability
 
 export const validateNewAvailability = (availability: AvailabilityUpdate) => {
     console.log(availability)
-    validateAvailabilityDateUpdate(availability);
+    const startDate = moment.utc(availability.startDate, 'DD-MM-YYYY');
+    const endDate = moment.utc(availability.endDate, 'DD-MM-YYYY');
+    validateAvailabilityDateUpdate(startDate, endDate);
     validateAvailabilityPriceUpdate(availability);
 }

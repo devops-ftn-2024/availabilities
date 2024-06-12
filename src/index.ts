@@ -75,6 +75,30 @@ app.get('/availabilities/health', (req, res) => {
   return res.status(200).json({message: "Hello, World!"});
 })
 
+// for guests to make a reservation
+app.get('/availabilities/:accommodationId/slots', async (req, res) => {
+  const accommodationId = req.params.accommodationId;
+  console.log(`Getting availabilities for accommodation: ${accommodationId}`);
+  const userData = req.headers.user;
+  try {
+      if (!userData) {
+        throw new NotFoundError('Logged user data not provided');
+      }
+      const loggedUser: LoggedUser = JSON.parse(userData as string);
+      const startDate = req.query.startDate as string;
+      const endDate = req.query.endDate as string;
+      const user = await availabilityService.getAccommodationSlots(loggedUser, accommodationId, startDate, endDate);
+      return res.json(user);
+  } catch (err) {
+    const code = err instanceof CustomError ? err.code : 500;
+    return res.status(code).json({ message: (err as Error).message });
+  }
+});
+
+// get availability and reservations for accommodation for host
+
+// search available accommodations for  everyone
+
 // preko rabbit mq: obrisi sve rezervacije i availability za smestaj
 
 // preko rabbit mq: kad se kreira accommodation, kreiraj ovde AccommodationAvailability
@@ -85,13 +109,7 @@ app.get('/availabilities/health', (req, res) => {
 
 // create reservation
 
-// get availability and reservations for accommodation   
-
-// get slots (dobavi za mesec slobodne dane i cenu)
-
 // get reservations for user
-
-// search available accommodations
 
 
 app.listen(PORT, () => {

@@ -6,3 +6,10 @@ export const authorizeHost = (role:Role) => {
         throw new ForbiddenError('Forbidden: User is not a host')
     }
 }
+
+
+export const authorizeGuest = (role:Role) => {
+    if (role !== Role.GUEST) {
+        throw new ForbiddenError('Forbidden: User is not a guest')
+    }
+}

@@ -50,13 +50,13 @@ export class AvailabilityRepository {
         return accommodation;
     }
 
-    public async updateStartEndDate(id: string, accommodationId: string, availabilityUpdate: AvailabilityUpdate): Promise<void> {
+    public async updateStartEndDate(id: string, accommodationId: string, startDate: Date, endDate: Date): Promise<void> {
         const result = await this.availabilityCollection.updateOne(
           { '_id': new ObjectId(id), 'accommodationId': new ObjectId(accommodationId)},
           {
             $set: {
-              startDate: availabilityUpdate.startDate,
-              endDate: availabilityUpdate.endDate
+              startDate,
+              endDate
             }
           }
         );
@@ -82,7 +82,7 @@ export class AvailabilityRepository {
     }
 
     public async getAvailability(id: string): Promise<MongoAvailability | null> {
-        const availability = await this.availabilityCollection.findOne({ '_id': new ObjectId(id) });
+        const availability = await this.availabilityCollection.findOne({ '_id': new ObjectId(id), 'valid': true });
         return availability;
     }
 
@@ -93,5 +93,20 @@ export class AvailabilityRepository {
         }
         const result = await this.availabilityCollection.insertOne(mongoAvailability as WithId<MongoAvailability>);
         console.log(result);
+    }
+
+    public async getAvailabilities(accommodationId: string, startDate: Date, endDate: Date): Promise<Availability[]> {  
+      const query = {
+        'accommodationId': new ObjectId(accommodationId),
+        'startDate': { $lte: endDate },
+        'endDate': { $gte: startDate },
+        'valid': true
+      };
+      const availabilities = await this.availabilityCollection.find(query,
+        {
+          sort: { startDate: 1 }
+        }
+        ).toArray();
+        return availabilities.map(availability => { return {...availability, accommodationId: availability.accommodationId.toHexString()}});
     }
 }
