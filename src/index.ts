@@ -71,6 +71,10 @@ app.put('/availabilities/:accommodationId/price/:id', async (req, res) => {
     }
 });
 
+app.get('/availabilities/health', (req, res) => {
+  return res.status(200).json({message: "Hello, World!"});
+})
+
 // preko rabbit mq: obrisi sve rezervacije i availability za smestaj
 
 // preko rabbit mq: kad se kreira accommodation, kreiraj ovde AccommodationAvailability
@@ -78,12 +82,6 @@ app.put('/availabilities/:accommodationId/price/:id', async (req, res) => {
 // confirm reservation  - pogledaj da li postoje neke pending u tom intervalu, one se automatski odbijaju
 
 // cancel reservation  - logicko brisanje
-
-// create availability for accommodation
-
-// change avaialbility for accommodation
-
-// change price for avaialbility
 
 // create reservation
 
