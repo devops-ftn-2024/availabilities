@@ -1,5 +1,5 @@
 import moment from "moment";
-import { AvailabilityUpdate } from "../types/availability";
+import { AvailabilityUpdate, Reservation } from "../types/availability";
 import { BadRequestError } from "../types/errors";
 
 export const validateAvailabilityDateUpdate = (startDate: moment.Moment, endDate: moment.Moment) => {
@@ -33,4 +33,22 @@ export const validateNewAvailability = (availability: AvailabilityUpdate) => {
     const endDate = moment.utc(availability.endDate, 'DD-MM-YYYY');
     validateAvailabilityDateUpdate(startDate, endDate);
     validateAvailabilityPriceUpdate(availability);
+}
+
+export const validateNewReservation = (reservation: Partial<Reservation>) => {
+    if (!reservation.startDate) {
+        throw new BadRequestError('startDate is required');
+    }
+    if (!reservation.endDate) {
+        throw new BadRequestError('endDate is required');
+    }
+    const startDate = moment.utc(reservation.startDate, 'DD-MM-YYYY');
+    const endDate = moment.utc(reservation.endDate, 'DD-MM-YYYY');
+    validateAvailabilityDateUpdate(startDate, endDate);
+    if (!reservation.guests || !Number.isInteger(reservation.guests) || reservation.guests <= 0) {
+        throw new BadRequestError('Number of guests must be a positive number');
+    }
+    if (!reservation.price || !Number.isInteger(reservation.price) || reservation.price <= 0) {
+        throw new BadRequestError('Price must be a positive number');
+    }
 }

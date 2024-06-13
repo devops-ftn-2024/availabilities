@@ -6,6 +6,8 @@ import { LoggedUser } from "../types/user";
 import { authorizeGuest, authorizeHost } from "../util/auth";
 import { extractDatesWithPrices } from "../util/availability";
 import { validateAvailabilityDateUpdate, validateAvailabilityPriceUpdate, validateNewAvailability } from "../util/validation";
+import { SearchQuery } from "../types/search.quert";
+import { parseQuery } from "../util/parse-query";
 
 export class AvailabilityService {
     private repository: AvailabilityRepository;
@@ -24,6 +26,13 @@ export class AvailabilityService {
             throw new ForbiddenError(`User ${loggedUser.username} is not authorized to update availability for accommodation with id: ${accommodationId}`);
         }
         console.log(`Creating availability for accommodation ${JSON.stringify(accommodationAvaialbility)}`)
+        const startDate = moment.utc(availability.startDate, 'DD-MM-YYYY');
+        const endDate = moment.utc(availability.endDate, 'DD-MM-YYYY');
+        const availabilitiesInTimeFrameCount = await this.repository.getAvailabilitiesCount(accommodationId, startDate.toDate(), endDate.toDate());
+        if (availabilitiesInTimeFrameCount > 0) {
+            throw new BadRequestError(`Availability already exists for the given time frame`);
+        }
+        console.log(availabilitiesInTimeFrameCount);
         validateNewAvailability(availability);
         availability.valid = true;
         availability.dateCreated = new Date();
@@ -103,8 +112,41 @@ export class AvailabilityService {
         }
         console.log(`Getting availabilities for accommodation: ${accommodationId}, startDate: ${startDateMoment}, endDate: ${endDateMoment}`);
         const availabilities = await this.repository.getAvailabilities(accommodationId, startDateMoment.toDate(), endDateMoment.toDate());
-        console.log(`Found ${availabilities.length} availabilities for accommodation: ${accommodationId}. Available slots: ${JSON.stringify(availabilities)}`);
+        console.log(`Found ${availabilities.length} availabilities for accommodation: ${accommodationId}.`);
+        console.log('Creating slots...')
         return extractDatesWithPrices(availabilities, startDateMoment, endDateMoment);
+    }
+
+    public async getAccommodationAvailability(loggedUser: LoggedUser, accommodationId: string, startDate: string, endDate: string) {
+        authorizeHost(loggedUser.role);
+        let startDateMoment: moment.Moment;
+        let endDateMoment: moment.Moment;
+        if (startDate && endDate) {
+            startDateMoment = moment.utc(startDate, 'DD-MM-YYYY');
+            endDateMoment = moment.utc(endDate, 'DD-MM-YYYY');
+        } else {
+            startDateMoment = moment.utc().startOf('month');
+            endDateMoment = moment.utc().endOf('month');
+        }
+
+        if (startDateMoment.isAfter(endDateMoment)) {
+            throw new BadRequestError('startDate must be before endDate');
+        }
+        console.log(`Getting availabilities for accommodation: ${accommodationId}, startDate: ${startDateMoment}, endDate: ${endDateMoment}`);
+        const availabilities = await this.repository.getAvailabilities(accommodationId, startDateMoment.toDate(), endDateMoment.toDate());
+        console.log(`Found ${availabilities.length} availabilities for accommodation: ${accommodationId}.`);
+        return availabilities;
+    }
+
+    public async searchAvailabilities(reqQuery) {
+        const query = parseQuery(reqQuery);
+        console.log(`Searching availabilities for accommodations. Query: ${JSON.stringify(query)}`);
+        const startDateMoment = query.startDate ? moment.utc(query.startDate, 'DD-MM-YYYY') : moment.utc().startOf('month');
+        const endDateMoment = query.endDate ? moment.utc(query.endDate, 'DD-MM-YYYY') : moment.utc().endOf('month');
+        if (startDateMoment.isAfter(endDateMoment)) {
+            throw new BadRequestError('startDate must be before endDate');
+        }
+        return await this.repository.getAvailabilitiesPerParams(startDateMoment.toDate(), endDateMoment.toDate(), query.location, query.guests);
     }
 
 }

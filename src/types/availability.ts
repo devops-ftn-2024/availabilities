@@ -8,16 +8,19 @@ export interface AccommodationAvailability {
     location: string;
     minCapacity: number;
     maxCapacity: number;
+    confirmationNeeded: boolean;
 }
 
 export interface Reservation {
-    _id?: string;
+    _id?: string | ObjectId;
     accommodationId: string;
     username: string;
     startDate: Date;
     endDate: Date;
     price: number;
+    unitPrice: number;
     status: ReservationStatus;
+    guests: number;
 }
 
 export interface Availability {
@@ -40,6 +43,12 @@ export enum ReservationStatus {
     CONFIRMED = 'Confirmed',
     CANCELLED = 'Cancelled',
     REJECTED = 'Rejected'
+}
+
+export interface Slot {
+    date: string;
+    price: number;
+
 }
 
 export type AvailabilityUpdate =  Partial<Availability>;
