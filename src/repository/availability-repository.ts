@@ -1,4 +1,4 @@
-import { Collection, MongoClient, ObjectId, WithId } from "mongodb";
+import { Collection, Filter, MongoClient, ObjectId, WithId } from "mongodb";
 import { AccommodationAvailability, Availability, AvailabilityUpdate } from "../types/availability";
 import { NotFoundError } from "../types/errors";
 
@@ -109,4 +109,72 @@ export class AvailabilityRepository {
         ).toArray();
         return availabilities.map(availability => { return {...availability, accommodationId: availability.accommodationId.toHexString()}});
     }
-}
+
+    public async getAvailabilitiesCount(accommodationId: string, startDate: Date, endDate: Date): Promise<number> {  
+      const query = {
+        'accommodationId': new ObjectId(accommodationId),
+        'startDate': { $lt: endDate },
+        'endDate': { $gt: startDate },
+        'valid': true
+      };
+      const availabilities = await this.availabilityCollection.countDocuments(query);
+      return availabilities;
+    }
+
+    public async getAvailabilitiesPerParams(startDate: Date, endDate: Date, location: string, guests: number): Promise<{accommodationId: string}[]> {  
+      const matchStage: Filter<MongoAccommodationAvailability> = {};
+
+      if (guests !== undefined) {
+        matchStage.minCapacity = { $lte: +guests };
+        matchStage.maxCapacity = { $gte: +guests };
+      }
+
+      if (location) {
+        matchStage.location = { $regex: location};
+      }
+      console.log(matchStage)
+     
+      const pipeline = [
+        {
+          $match: matchStage
+        },
+        {
+          $lookup: {
+            from: "availabilities",
+            localField: "accommodationId",
+            foreignField: "accommodationId",
+            as: "availabilities"
+          }
+        },
+        {
+          $addFields: {
+            availabilities: {
+              $filter: {
+                input: "$availabilities",
+                as: "availabilities",
+                cond: {
+                  $and: [
+                    { $lte: ["$$availabilities.startDate", endDate] },
+                    { $gte: ["$$availabilities.endDate", startDate] }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          $match: {
+            availabilities: { $ne: [] }
+          }
+        },
+        {
+          $project: {
+            accommodationId: 1
+          }
+        }
+      ];
+
+      const result = await this.accommodationCollection.aggregate(pipeline).toArray();
+      return result.map(accommodation =>  accommodation.accommodationId.toHexString());
+    }
+  }
