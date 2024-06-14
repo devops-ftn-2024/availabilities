@@ -45,10 +45,11 @@ export class ReservationService {
             unitPrice
         };
         console.log(`Saving reservation: ${JSON.stringify(reservationToInsert)} for accommodation ${accommodationId}`)
-        await this.reservationRepository.insertNewReservation(reservationToInsert);
         if (!accommodationAvaialbility.confirmationNeeded) {
+            await this.reservationRepository.getCancelReservationsWithinTimeframe(reservation.accommodationId, reservationStartDate.toDate(), reservationEndDate.toDate());
             await this.changeAvailabilities(availabilities, reservationStartDate, reservationEndDate);
         }
+        await this.reservationRepository.insertNewReservation(reservationToInsert);
     }
 
     public async getAccommodationReservations(loggedUser: LoggedUser, accommodationId: string) {
@@ -84,16 +85,8 @@ export class ReservationService {
         }
         const startDate = moment(reservation.startDate);
         const endDate = moment(reservation.endDate);
-        const reservationsWithinTimeframe = await this.reservationRepository.getReservationsWithinTimeframe(reservation.accommodationId, startDate.toDate(), endDate.toDate());
-        for (let reservation of reservationsWithinTimeframe) {
-            if (reservation.status === ReservationStatus.CONFIRMED) {
-                throw new BadRequestError(`There is already a confirmed reservation for the given time frame`);
-            }
-            if (reservation.status === ReservationStatus.PENDING) {
-                await this.cancelReservationObj(reservation);
-            }
-        }
         await this.reservationRepository.updateReservationStatus(reservationId, ReservationStatus.CONFIRMED);
+        await this.reservationRepository.getCancelReservationsWithinTimeframe(reservation.accommodationId, startDate.toDate(), endDate.toDate());
         const availabilities = await this.availabilityRepository.getAvailabilities(reservation.accommodationId, startDate.toDate(), endDate.toDate());
         await this.changeAvailabilities(availabilities, startDate, endDate);
     }
@@ -103,15 +96,15 @@ export class ReservationService {
         if (!reservation) {
             throw new NotFoundError(`Reservation not found for id: ${reservationId}`);
         }
-        if (reservation.status !== ReservationStatus.CONFIRMED) {
-            throw new BadRequestError(`Reservation with id: ${reservationId} is not confirmed and cannot be cancelled`);
+        if (reservation.status === ReservationStatus.CANCELLED) {
+            throw new BadRequestError(`Reservation with id: ${reservationId} is already cancelled or rejected`);
         }
         await this.reservationRepository.updateReservationStatus(reservationId, ReservationStatus.CANCELLED);
         const newAvailability = {
             accommodationId: reservation.accommodationId,
             startDate: reservation.startDate,
             endDate: reservation.endDate,
-            price: reservation.price,
+            price: reservation.unitPrice,
             dateCreated: new Date(),
             valid: true
         };
@@ -142,17 +135,19 @@ export class ReservationService {
         const availabilitySlots: Slot[] = extractDatesWithPrices(availabilities, startDate, endDate);
         const reservationSlots: Slot[] = extractDatesFromTimeframe(startDate, endDate);
         reservationSlots.forEach((reservationSlot) => {
-            const availabilitySlot = availabilitySlots.find((slot) => slot.date === reservationSlot.date);
+            const availabilitySlot: Slot = availabilitySlots.find((slot) => slot.date === reservationSlot.date);
             if (!availabilitySlot) {
                 throw new BadRequestError(`There is no availability for the given time frame`);
             }
-            allPricesInAvailablePeriod[reservationSlot.date] =  allPricesInAvailablePeriod[reservationSlot.date] ? 
-                    allPricesInAvailablePeriod[reservationSlot.date] + 1 : 0;
+            allPricesInAvailablePeriod[availabilitySlot.price] =  allPricesInAvailablePeriod[availabilitySlot.price] ? 
+                    allPricesInAvailablePeriod[availabilitySlot.price] + 1 : 1;
         });
         console.log(`Availability check passed for reservation from ${startDate} to ${endDate}`)
         console.log(`Availabilities: ${JSON.stringify(availabilities)}`)
 
-        return +Object.keys(allPricesInAvailablePeriod).reduce((a, b) => allPricesInAvailablePeriod[a] > allPricesInAvailablePeriod[b] ? a : b);
+        const unitPrice = +Object.keys(allPricesInAvailablePeriod).reduce((a, b) => allPricesInAvailablePeriod[a] > allPricesInAvailablePeriod[b] ? a : b);
+
+        return unitPrice;
     }
 
     private async changeAvailabilities(availabilities: Availability[], startDate: moment.Moment, endDate: moment.Moment) {
@@ -168,19 +163,19 @@ export class ReservationService {
             }
 
             // avaiability 1-30 , reservation 1-15 -> avaialbility 15-30
-            if (availabilityStartDate.isSame(startDate) && availabilityEndDate.isAfter(endDate)) {
+            else if (availabilityStartDate.isSame(startDate) && availabilityEndDate.isAfter(endDate)) {
                 console.log(`2) Updating availability: ${avaialibility._id.toString()} to ${startDate} - ${endDate}`);
                 await this.availabilityRepository.updateStartEndDate(avaialibility._id.toString(), avaialibility.accommodationId, endDate.toDate(), availabilityEndDate.toDate());
             }
 
             // avaiability 1-30 , reservation 15-30 -> avaialbility 1-15
-            if (availabilityStartDate.isBefore(startDate) && availabilityEndDate.isSame(endDate)) {
+            else if (availabilityStartDate.isBefore(startDate) && availabilityEndDate.isSame(endDate)) {
                 console.log(`3) Updating availability: ${avaialibility._id.toString()} to ${startDate} - ${endDate}`);
                 await this.availabilityRepository.updateStartEndDate(avaialibility._id.toString(), avaialibility.accommodationId, availabilityStartDate.toDate(), startDate.toDate());
             }
 
             // avaiability 1-30 , reservation 15-20 -> avaialbility 1-15, 20-30
-            if (availabilityStartDate.isBefore(startDate) && availabilityEndDate.isAfter(endDate)) {
+            else if (availabilityStartDate.isBefore(startDate) && availabilityEndDate.isAfter(endDate)) {
                 console.log(`4) Updating availability: ${avaialibility._id.toString()} to ${startDate} - ${endDate} and creating new availability for ${endDate} - ${availabilityEndDate}`);
                 await this.availabilityRepository.updateStartEndDate(avaialibility._id.toString(), avaialibility.accommodationId, availabilityStartDate.toDate(), startDate.toDate());
                 const newAvailability: Availability = {
@@ -195,16 +190,36 @@ export class ReservationService {
             }
 
             // availability 1-30, availability 30-15, reservation 20-10 -> prvi availability 1-20
-            if (availabilityStartDate.isBefore(startDate) && availabilityEndDate.isBefore(endDate)) {
+            else if (availabilityStartDate.isBefore(startDate) && availabilityEndDate.isBefore(endDate)) {
                 console.log(`5) Updating availability: ${avaialibility._id.toString()} to ${startDate} - ${availabilityEndDate}`);
                 await this.availabilityRepository.updateStartEndDate(avaialibility._id.toString(), avaialibility.accommodationId, availabilityStartDate.toDate(), startDate.toDate());
             }
 
             // availability 1-30, availability 30-15, reservation 20-10 -> drugi availability 10-15
-            if (availabilityStartDate.isAfter(startDate) && availabilityEndDate.isAfter(endDate)) {
+            else if (availabilityStartDate.isAfter(startDate) && availabilityEndDate.isAfter(endDate)) {
                 console.log(`6) Updating availability: ${avaialibility._id.toString()} to ${endDate} - ${availabilityEndDate}`);
                 await this.availabilityRepository.updateStartEndDate(avaialibility._id.toString(), avaialibility.accommodationId, endDate.toDate(), availabilityEndDate.toDate());
             }
+
+            //availability 1-10 availability 10-20 availability 20-30, reservation 5-25 -> drugi invalid
+            else if (availabilityStartDate.isAfter(startDate) && availabilityEndDate.isBefore(endDate)) {
+                console.log(`7) Setting availability as invalid: ${avaialibility._id.toString()} to ${startDate} - ${endDate}`);
+                await this.availabilityRepository.setAvailabilityAsInvalid(avaialibility._id.toString(), avaialibility.accommodationId);
+            }
+
+            //availaility 1-5, availability 5-20, availability 20-30, reservation 1-20 -> prvi invalid
+            else if (availabilityStartDate.isSame(startDate) && availabilityEndDate.isBefore(endDate)) {
+                console.log(`8) Setting availability as invalid: ${avaialibility._id.toString()} to ${startDate} - ${endDate}`);
+                await this.availabilityRepository.setAvailabilityAsInvalid(avaialibility._id.toString(), avaialibility.accommodationId);
+            }
+
+            //availaility 1-5, availability 5-25, availability 25-30, reservation 1-25 -> drugi invalid
+            else if (availabilityStartDate.isAfter(startDate) && availabilityEndDate.isSame(endDate)) {
+                console.log(`9) Setting availability as invalid: ${avaialibility._id.toString()} to ${startDate} - ${endDate}`);
+                await this.availabilityRepository.setAvailabilityAsInvalid(avaialibility._id.toString(), avaialibility.accommodationId);
+            }
+
+
         } 
     }
 }

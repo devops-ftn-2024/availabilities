@@ -63,7 +63,6 @@ export class AvailabilityRepository {
         if (!result) {
             throw new NotFoundError(`Availability with id ${id} not found`);
         }
-        console.log(result);
     }
 
     public async setAvailabilityAsInvalid(id: string, accommodationId: string): Promise<void> {
@@ -78,7 +77,6 @@ export class AvailabilityRepository {
         if (!result) {
             throw new NotFoundError(`Availability with id ${id} not found`);
         }
-        console.log(result);
     }
 
     public async getAvailability(id: string): Promise<MongoAvailability | null> {
@@ -92,7 +90,6 @@ export class AvailabilityRepository {
             accommodationId: new ObjectId(availability.accommodationId)
         }
         const result = await this.availabilityCollection.insertOne(mongoAvailability as WithId<MongoAvailability>);
-        console.log(result);
     }
 
     public async getAvailabilities(accommodationId: string, startDate: Date, endDate: Date): Promise<Availability[]> {  
