@@ -72,18 +72,34 @@ export class ReservationRepository {
         }
     }
 
-    public getReservationsWithinTimeframe = async (accommodationId: string, startDate: Date, endDate: Date): Promise<Reservation[]> => {
-        const reservations = await this.reservationsCollection.find({
-            accommodationId: new ObjectId(accommodationId),
-            startDate: { $lte: endDate },
-            endDate: { $gte: startDate }
-        }).toArray();
-        return reservations.map((reservation) => {
-            return {
-                ...reservation,
-                accommodationId: reservation.accommodationId.toHexString()
+    public getCancelReservationsWithinTimeframe = async (accommodationId: string, startDate: Date, endDate: Date): Promise<void> => {
+        //create aggregation to filter by accommodationId, startDate and endDate, if status is Pending set it to Cancelled
+        const aggregation = [
+            {
+                $match: {
+                    accommodationId: new ObjectId(accommodationId),
+                    startDate: { $lte: endDate },
+                    endDate: { $gte: startDate }
+                }
+            },
+            {
+                $set: {
+                    status: {
+                        $cond: { if: { $eq: ["$status", "Pending"] }, then: "Cancelled", else: "$status" }
+                    }
+                }
+            },
+            {
+                $merge: {
+                    into: process.env.MONGO_COLLECTION_NAME_RESERVATION,
+                    whenMatched: "merge",
+                    whenNotMatched: "discard"
+                }
             }
-        });
+        ]
+
+        const result = await this.reservationsCollection.aggregate(aggregation).toArray();
+        console.log('result cancel pending:', result)
     }
 
     public updateReservationStatus = async (reservationId: string, status: ReservationStatus): Promise<void> => {

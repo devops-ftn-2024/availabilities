@@ -42,7 +42,6 @@ export enum ReservationStatus {
     PENDING = 'Pending',
     CONFIRMED = 'Confirmed',
     CANCELLED = 'Cancelled',
-    REJECTED = 'Rejected'
 }
 
 export interface Slot {
