@@ -2,7 +2,7 @@ import moment from "moment";
 import { AvailabilityRepository } from "../repository/availability-repository";
 import { ReservationRepository } from "../repository/reservation.repository";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../types/errors";
-import { LoggedUser } from "../types/user";
+import { LoggedUser, UsernameDTO } from "../types/user";
 import { authorizeGuest, authorizeHost } from "../util/auth";
 import { Availability, Reservation, ReservationStatus, Slot } from "../types/availability";
 import { extractDatesFromTimeframe, extractDatesWithPrices } from "../util/availability";
@@ -218,8 +218,11 @@ export class ReservationService {
                 console.log(`9) Setting availability as invalid: ${avaialibility._id.toString()} to ${startDate} - ${endDate}`);
                 await this.availabilityRepository.setAvailabilityAsInvalid(avaialibility._id.toString(), avaialibility.accommodationId);
             }
-
-
         } 
+    }
+
+    public async updateUsername(usernameDTO: UsernameDTO) {
+        console.log(`Updating username: ${JSON.stringify(usernameDTO)}`);
+        await this.reservationRepository.updateUsername(usernameDTO);
     }
 }

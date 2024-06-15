@@ -1,6 +1,7 @@
 import { Collection, Filter, MongoClient, ObjectId, WithId } from "mongodb";
 import { AccommodationAvailability, Availability, AvailabilityUpdate } from "../types/availability";
 import { NotFoundError } from "../types/errors";
+import { UsernameDTO } from "../types/user";
 
 interface MongoAccommodationAvailability extends Omit<AccommodationAvailability, '_id' | 'accommodationId'> {
   _id?: ObjectId;
@@ -84,12 +85,13 @@ export class AvailabilityRepository {
         return availability;
     }
 
-    public async insertNewAvailability(availability: Availability): Promise<void> {
+    public async insertNewAvailability(availability: Availability): Promise<ObjectId> {
         const mongoAvailability = {
             ...availability,
             accommodationId: new ObjectId(availability.accommodationId)
         }
         const result = await this.availabilityCollection.insertOne(mongoAvailability as WithId<MongoAvailability>);
+        return result.insertedId;
     }
 
     public async getAvailabilities(accommodationId: string, startDate: Date, endDate: Date): Promise<Availability[]> {  
@@ -173,5 +175,27 @@ export class AvailabilityRepository {
 
       const result = await this.accommodationCollection.aggregate(pipeline).toArray();
       return result.map(accommodation =>  accommodation.accommodationId.toHexString());
+    }
+
+    public async insertNewAccommodation(accommodation: AccommodationAvailability): Promise<ObjectId> {
+        const mongoAccommodation = {
+            ...accommodation,
+            accommodationId: new ObjectId(accommodation.accommodationId)
+        }
+        const result = await this.accommodationCollection.insertOne(mongoAccommodation as WithId<MongoAccommodationAvailability>);
+        return result.insertedId;
+    }
+
+    public async updateUsername(usernameDTO: UsernameDTO) {
+        const result = await this.accommodationCollection.updateMany(
+            { 'ownerUsername': usernameDTO.oldUsername },
+            {
+                $set: {
+                    ownerUsername: usernameDTO.newUsername
+                }
+            }
+        );
+        return result.upsertedCount;
+
     }
   }

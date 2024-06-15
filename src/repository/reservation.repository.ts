@@ -1,5 +1,6 @@
 import { Collection, MongoClient, ObjectId, WithId } from "mongodb";
 import { AccommodationAvailability, Reservation, ReservationStatus } from "../types/availability";
+import { UsernameDTO } from "../types/user";
 
 interface MongoReservation extends Omit<Reservation,  '_id' | 'accommodationId'> {
     _id?: ObjectId;
@@ -116,4 +117,15 @@ export class ReservationRepository {
         }
     }
 
+    public async updateUsername(usernameDTO: UsernameDTO) {
+        const result = await this.reservationsCollection.updateMany(
+            { username: usernameDTO.oldUsername },
+            {
+                $set: {
+                    username: usernameDTO.newUsername
+                }
+            }
+        );
+        return result.upsertedCount;
+    }
 }
