@@ -1,6 +1,6 @@
 import moment from "moment";
 import { AvailabilityRepository } from "../repository/availability-repository";
-import { Availability, AvailabilityUpdate } from "../types/availability";
+import { AccommodationAvailability, Availability, AvailabilityUpdate } from "../types/availability";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../types/errors";
 import { LoggedUser } from "../types/user";
 import { authorizeGuest, authorizeHost } from "../util/auth";
@@ -147,6 +147,16 @@ export class AvailabilityService {
             throw new BadRequestError('startDate must be before endDate');
         }
         return await this.repository.getAvailabilitiesPerParams(startDateMoment.toDate(), endDateMoment.toDate(), query.location, query.guests);
+    }
+
+    public async addAccommodation(accommodation: AccommodationAvailability) {
+        console.log(`Adding accommodation: ${JSON.stringify(accommodation)}`);
+        await this.repository.insertNewAccommodation(accommodation);
+    }
+
+    public async updateUsername(usernameDTO) {
+        console.log(`Updating username: ${JSON.stringify(usernameDTO)}`);
+        await this.repository.updateUsername(usernameDTO);
     }
 
 }

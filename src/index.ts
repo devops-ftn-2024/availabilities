@@ -5,6 +5,7 @@ import { AvailabilityService } from './service/availability-service';
 import { LoggedUser } from './types/user';
 import cors from 'cors';
 import { ReservationService } from './service/reservation-service';
+import { EventQueue } from './gateway/event-queue';
 require('dotenv').config();
 
 const app = express();
@@ -17,6 +18,7 @@ const corsOptions = {
 
 const availabilityService = new AvailabilityService();
 const reservationService = new ReservationService();
+new EventQueue(availabilityService, reservationService);
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -215,9 +217,6 @@ app.put('/reservations/:id/cancel', async (req, res) => {
 
 
 // preko rabbit mq: obrisi sve rezervacije i availability za smestaj
-
-// preko rabbit mq: kad se kreira accommodation, kreiraj ovde AccommodationAvailability
-
 
 app.listen(PORT, () => {
   console.log(`Backend service running on http://localhost:${PORT}`);

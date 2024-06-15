@@ -1,7 +1,7 @@
 import { ObjectId } from "mongodb";
 
 export interface AccommodationAvailability {
-    _id?: string;
+    _id?: string | ObjectId;
     accommodationId: string;
     ownerUsername: string;
     priceLevel: PriceLevel;
