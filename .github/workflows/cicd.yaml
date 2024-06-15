@@ -91,6 +91,12 @@ jobs:
     - name: Wait for the app service
       working-directory: tests
       run: |
+        LOGS_SINCE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        fetch_logs() {
+          docker compose logs --since "$LOGS_SINCE" $1
+          LOGS_SINCE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        }
+
         echo "Waiting for the app service to start..."
         for i in {1..30}; do
           health=$(docker inspect --format='{{.State.Health.Status}}' $(docker compose ps -q app) 2>/dev/null)
@@ -99,6 +105,7 @@ jobs:
             exit 0
           fi
           echo "App service is $health... ($i/30)"
+          fetch_logs app
           sleep 3
         done
         echo "App service failed to start."
