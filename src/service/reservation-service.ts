@@ -1,6 +1,6 @@
 import moment from "moment";
 import { AvailabilityRepository } from "../repository/availability-repository";
-import { ReservationRepository } from "../repository/reservation.repository";
+import { ReservationRepository } from "../repository/reservation-repository";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../types/errors";
 import { LoggedUser, UsernameDTO } from "../types/user";
 import { authorizeGuest, authorizeHost } from "../util/auth";

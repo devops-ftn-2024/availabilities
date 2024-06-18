@@ -38,8 +38,7 @@ export class ReservationRepository {
             ...reservation,
             accommodationId: new ObjectId(reservation.accommodationId)
         }
-        const result = await this.reservationsCollection.insertOne(mongoReservation as WithId<MongoReservation>);
-        console.log(result)
+        await this.reservationsCollection.insertOne(mongoReservation as WithId<MongoReservation>);
     }
 
     public getReservations = async (username: string): Promise<Reservation[]> => {
