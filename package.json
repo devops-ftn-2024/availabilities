@@ -48,7 +48,6 @@
         "testEnvironment": "node",
         "transform": {
             "^.+\\.tsx?$": "babel-jest"
-        },
-        "setupFiles": ["<rootDir>/jest.setup.js"]
+        }
     }
 }
