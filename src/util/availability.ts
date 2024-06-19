@@ -38,3 +38,13 @@ export const extractDatesWithPrices = (availabilities: Availability[], startDate
   
     return datesWithPrices;
   }
+
+  export interface ReviewAccommodation {
+    accommodationId: string,
+    reviewerUsername: string,
+  }
+
+  export interface ReviewHost {
+    hostUsername: string,
+    reviewerUsername: string
+  }
