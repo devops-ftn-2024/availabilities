@@ -3,9 +3,9 @@ import { ReservationService } from "../service/reservation-service";
 import { AvailabilityRepository } from "../repository/availability-repository";
 import { ReservationRepository } from "../repository/reservation-repository";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../types/errors";
-import { LoggedUser, Role, UsernameDTO } from "../types/user";
+import { LoggedUser, Role } from "../types/user";
 import { authorizeGuest, authorizeHost } from "../util/auth";
-import { AccommodationAvailability, PriceLevel, Reservation, ReservationStatus } from "../types/availability";
+import { PriceLevel, Reservation, ReservationStatus } from "../types/availability";
 import { validateNewReservation } from "../util/validation";
 import { ObjectId } from "mongodb";
 
