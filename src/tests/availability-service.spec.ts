@@ -16,15 +16,6 @@ describe('AvailabilityService', () => {
     let service: AvailabilityService;
     let mockRepository: jest.Mocked<AvailabilityRepository>;
 
-    beforeAll(() => {
-        process.env.MONGO_URI = 'mongodb://localhost:27017/test';
-        process.env.MONGO_DB_NAME = 'test';
-        process.env.MONGO_COLLECTION_NAME_RESERVATION = 'reservations';
-        process.env.MONGO_COLLECTION_NAME_ACCOMMODATION = 'accommodations';
-        process.env.MONGO_COLLECTION_NAME_AVAILABILITY = 'availabilities';
-
-    });
-
     beforeEach(() => {
         mockRepository = new AvailabilityRepository() as jest.Mocked<AvailabilityRepository>;
         service = new AvailabilityService();
