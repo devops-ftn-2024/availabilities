@@ -12,7 +12,7 @@ const app = express();
 const PORT = process.env.PORT;
 
 const corsOptions = {
-    origin: process.env.ALLOWED_ORIGIN,
+    origin: (process.env.ALLOWED_ORIGIN!).split(','),
     optionsSuccessStatus: 200,
   };
 
@@ -129,7 +129,6 @@ app.get('/availabilities/:accommodationId', async (req, res) => {
   }
 });
 
-
 app.post('/reservations/:accommodationId', async (req, res) => {
   console.log(`Creating reservation for accommodation with id: ${req.params.accommodationId}`);
   try {
@@ -209,6 +208,30 @@ app.put('/reservations/:id/cancel', async (req, res) => {
       const loggedUser: LoggedUser = JSON.parse(userData as string);
       const reservation = await reservationService.cancelReservation(loggedUser, reservationId);
       return res.json(reservation);
+  } catch (err) {
+    const code = err instanceof CustomError ? err.code : 500;
+    return res.status(code).json({ message: (err as Error).message });
+  }
+});
+
+app.post('/reservations/review/accommodation', async (req, res) => {
+  console.log(`Checking is guest can leave review on accommodation. Payload: ${JSON.stringify(req.body)}`);
+  try {
+      const hasPermission = await reservationService.checkIfUserStayedInAccommodation(req.body);
+      console.log(`For accommodations has permission: ${hasPermission}`)
+      return res.json(hasPermission);
+  } catch (err) {
+    const code = err instanceof CustomError ? err.code : 500;
+    return res.status(code).json({ message: (err as Error).message });
+  }
+});
+
+app.post('/reservations/review/host', async (req, res) => {
+  console.log(`Checking is guest can leave review on host. Payload: ${JSON.stringify(req.body)}`);
+  try {
+      const hasPermission = await reservationService.checkIfUserStayedInHostAccommodation(req.body);
+      console.log(`For host has permission: ${hasPermission}`)
+      return res.json(hasPermission);
   } catch (err) {
     const code = err instanceof CustomError ? err.code : 500;
     return res.status(code).json({ message: (err as Error).message });

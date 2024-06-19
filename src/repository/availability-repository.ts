@@ -196,6 +196,5 @@ export class AvailabilityRepository {
             }
         );
         return result.upsertedCount;
-
     }
   }

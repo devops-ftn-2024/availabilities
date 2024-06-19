@@ -5,7 +5,7 @@ import { BadRequestError, ForbiddenError, NotFoundError } from "../types/errors"
 import { LoggedUser, UsernameDTO } from "../types/user";
 import { authorizeGuest, authorizeHost } from "../util/auth";
 import { Availability, Reservation, ReservationStatus, Slot } from "../types/availability";
-import { extractDatesFromTimeframe, extractDatesWithPrices } from "../util/availability";
+import { extractDatesFromTimeframe, extractDatesWithPrices, ReviewAccommodation, ReviewHost } from "../util/availability";
 import { validateNewReservation } from "../util/validation";
 
 export class ReservationService {
@@ -224,5 +224,13 @@ export class ReservationService {
     public async updateUsername(usernameDTO: UsernameDTO) {
         console.log(`Updating username: ${JSON.stringify(usernameDTO)}`);
         await this.reservationRepository.updateUsername(usernameDTO);
+    }
+
+    public async checkIfUserStayedInAccommodation(reviewAccommodation: ReviewAccommodation) {
+        return await this.reservationRepository.checkIfUserStayedInAccommodation(reviewAccommodation);
+    }
+
+    public async checkIfUserStayedInHostAccommodation(reviewHost: ReviewHost) {
+        return await this.reservationRepository.checkIfUserStayedInHostAccommodation(reviewHost);
     }
 }

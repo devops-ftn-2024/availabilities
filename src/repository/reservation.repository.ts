@@ -1,6 +1,8 @@
 import { Collection, MongoClient, ObjectId, WithId } from "mongodb";
 import { AccommodationAvailability, Reservation, ReservationStatus } from "../types/availability";
 import { UsernameDTO } from "../types/user";
+import { ReviewAccommodation, ReviewHost } from "../util/availability";
+import moment from "moment";
 
 interface MongoReservation extends Omit<Reservation,  '_id' | 'accommodationId'> {
     _id?: ObjectId;
@@ -127,5 +129,56 @@ export class ReservationRepository {
             }
         );
         return result.upsertedCount;
+    }
+
+    public async checkIfUserStayedInAccommodation(reviewAccommodation: ReviewAccommodation): Promise<boolean> {
+        const result = await this.reservationsCollection.countDocuments(
+            { 
+             'accommodationId': new ObjectId(reviewAccommodation.accommodationId),
+             'username': reviewAccommodation.reviewerUsername,
+             'status': ReservationStatus.CONFIRMED,
+             'startDate': { $lte: moment.utc().toDate() }
+            });
+        return result > 0;
+    }
+
+    public async checkIfUserStayedInHostAccommodation(reviewHost: ReviewHost): Promise<boolean> {
+        const pipeline = [
+            {
+                $match: {
+                    username: reviewHost.reviewerUsername,
+                    status: ReservationStatus.CONFIRMED,
+                    startDate: { $lte: moment.utc().toDate() }
+                }
+            },
+            {
+                $lookup: {
+                    from: "accommodations",
+                    localField: "accommodationId",
+                    foreignField: "accommodationId",
+                    as: "accommodationDetails"
+                }
+            },
+            {
+                $unwind: "$accommodationDetails"
+            },
+            {
+                $match: {
+                    "accommodationDetails.ownerUsername": reviewHost.hostUsername
+                }
+            },
+            {
+                $count: "matchingReservations"
+            }
+        ];
+        
+        const result = await this.reservationsCollection.aggregate(pipeline).toArray();
+        if (result.length > 0) {
+            console.log(`Count of matching reservations: ${result[0].matchingReservations}`);
+            return result[0].matchingReservations > 0; 
+        } else {
+            console.log("No matching reservations found.");
+            return false;
+        }
     }
 }
