@@ -4,7 +4,7 @@ import { AccommodationAvailability, Availability, AvailabilityUpdate } from "../
 import { BadRequestError, ForbiddenError, NotFoundError } from "../types/errors";
 import { LoggedUser } from "../types/user";
 import { authorizeGuest, authorizeHost } from "../util/auth";
-import { extractDatesWithPrices } from "../util/availability";
+import { extractDatesWithPrices, ReviewAccommodation } from "../util/availability";
 import { validateAvailabilityDateUpdate, validateAvailabilityPriceUpdate, validateNewAvailability } from "../util/validation";
 import { SearchQuery } from "../types/search.quert";
 import { parseQuery } from "../util/parse-query";
@@ -158,5 +158,4 @@ export class AvailabilityService {
         console.log(`Updating username: ${JSON.stringify(usernameDTO)}`);
         await this.repository.updateUsername(usernameDTO);
     }
-
 }

@@ -12,7 +12,8 @@ export class EventQueue {
 
         amqp.connect(`amqp://${process.env.RABBITMQ_USERNAME}:${process.env.RABBITMQ_PASSWORD}@${process.env.RABBITMQ_HOST}:${process.env.RABBITMQ_PORT}/`, (error, connection) => {
             if (error) {
-                throw error;
+                return;
+                //throw error;
             }
 
             connection.createChannel((error1, channel) => {
