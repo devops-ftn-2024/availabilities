@@ -1,13 +1,13 @@
 import moment from "moment";
 import { ReservationService } from "../service/reservation-service";
 import { AvailabilityRepository } from "../repository/availability-repository";
+import { ReservationRepository } from "../repository/reservation-repository";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../types/errors";
 import { LoggedUser, Role, UsernameDTO } from "../types/user";
 import { authorizeGuest, authorizeHost } from "../util/auth";
 import { AccommodationAvailability, PriceLevel, Reservation, ReservationStatus } from "../types/availability";
 import { validateNewReservation } from "../util/validation";
 import { ObjectId } from "mongodb";
-import { ReservationRepository } from "../repository/reservation-repository";
 
 jest.mock("../repository/availability-repository");
 jest.mock("../repository/reservation-repository");
@@ -42,7 +42,7 @@ const mockReservations: Reservation[] = [
 describe("ReservationService", () => {
     let reservationService;
     let availabilityRepositoryMock;
-    let reservationRepositoryMock;
+    let reservationRepositoryMock: jest.Mocked<ReservationRepository>;
 
     beforeEach(() => {
         availabilityRepositoryMock = new AvailabilityRepository() as jest.Mocked<AvailabilityRepository>;
@@ -75,15 +75,16 @@ describe("ReservationService", () => {
     describe("createReservation", () => {
         it("should authorize guest, validate reservation, and create new reservation", async () => {
             const loggedUser: LoggedUser = { username: "guest", role: Role.GUEST };
-            const accommodationId = "accommodationId";
+            const accommodationId = "123";
             const reservation: Partial<Reservation> = {
+                _id: new ObjectId(123),
                 startDate: new Date("2023-01-01"),
-                endDate: new Date("2023-01-10"),
+                endDate: new Date("2023-02-10"),
                 price: 100,
                 guests: 2
             };
             const accommodationAvailability = {
-                accommodationId: new ObjectId(123),
+                accommodationId: accommodationId,
                 ownerUsername: "host",
                 priceLevel: PriceLevel.perGuest,
                 location: "Your Location",
@@ -91,7 +92,7 @@ describe("ReservationService", () => {
                 maxCapacity: 5,
                 confirmationNeeded: false
             };
-            const availabilities = [{ /* mock availability data */ }] as any[];
+            const availabilities = [] as any[];
             const unitPrice = 100;
 
             (authorizeGuest as jest.Mock).mockImplementation(() => {});
@@ -150,11 +151,11 @@ describe("ReservationService", () => {
                 maxCapacity: 5,
                 confirmationNeeded: false
             };
-            const reservations: Reservation[] = [{ /* mock reservation data */ }] as Reservation[];
+            const reservations: Reservation[] = [] as any;
 
             (authorizeHost as jest.Mock).mockImplementation(() => {});
             availabilityRepositoryMock.getAccommodation.mockResolvedValue(accommodationAvailability);
-            reservationRepositoryMock.getAccommodationReservations.mockResolvedValue([] as any);
+            reservationRepositoryMock.getAccommodationReservations.mockResolvedValue(reservations);
 
             const result = await reservationService.getAccommodationReservations(loggedUser, accommodationId);
 
@@ -207,11 +208,21 @@ describe("ReservationService", () => {
     describe("confirmReservation", () => {
         it("should authorize host and confirm reservation", async () => {
             const loggedUser: LoggedUser = { username: "host", role: Role.HOST };
-            const reservationId = "reservationId";
-            const reservation = { accommodationId: "accommodationId", status: ReservationStatus.PENDING, startDate: new Date(), endDate: new Date() };
+            const reservationId = "123";
+            const reservation: Reservation = {
+                _id: new ObjectId(123),
+                accommodationId: "accommodationId",
+                username: "guest",
+                startDate: new Date(),
+                endDate: new Date(),
+                price: 100,
+                status: ReservationStatus.PENDING,
+                guests: 5,
+                unitPrice: 100
+            };
             const accommodationAvailability = {
                 accommodationId: new ObjectId(123),
-                ownerUsername: "differentHost",
+                ownerUsername: "host",
                 priceLevel: PriceLevel.perGuest,
                 location: "Your Location",
                 minCapacity: 1,
@@ -251,10 +262,10 @@ describe("ReservationService", () => {
 
         it("should throw ForbiddenError if logged user is not the owner of the accommodation", async () => {
             const loggedUser: LoggedUser = { username: "host", role: Role.HOST };
-            const reservationId = "reservationId";
+            const reservationId = "123";
             const reservation = { accommodationId: "accommodationId" };
             const accommodationAvailability = {
-                accommodationId: new ObjectId("yourAccommodationIdHere"),
+                accommodationId: new ObjectId(123),
                 ownerUsername: "differentHost",
                 priceLevel: PriceLevel.perGuest,
                 location: "Your Location",
@@ -278,27 +289,67 @@ describe("ReservationService", () => {
 
         it("should throw BadRequestError if reservation is already confirmed", async () => {
             const loggedUser: LoggedUser = { username: "host", role: Role.HOST };
-            const reservationId = "reservationId";
-            const reservation = { accommodationId: "accommodationId", status: ReservationStatus.CONFIRMED };
-
-            (authorizeHost as jest.Mock).mockImplementation(() => {});
+            const reservationId = "123";
+            const reservation: Reservation = {
+                _id: new ObjectId(123),
+                accommodationId: "accommodationId",
+                username: "host",
+                startDate: new Date(),
+                endDate: new Date(),
+                price: 100,
+                status: ReservationStatus.CONFIRMED,
+                guests: 5,
+                unitPrice: 100
+            };
+            const accommodationAvailability = {
+                accommodationId: "accommodationId",
+                ownerUsername: "host",
+                priceLevel: PriceLevel.perGuest,
+                location: "Your Location",
+                minCapacity: 1,
+                maxCapacity: 5,
+                confirmationNeeded: false
+            };
+    
             reservationRepositoryMock.getReservation.mockResolvedValue(reservation as Reservation);
-
+            availabilityRepositoryMock.getAccommodation.mockResolvedValue(accommodationAvailability);
+    
             await expect(reservationService.confirmReservation(loggedUser, reservationId))
                 .rejects
                 .toThrow(BadRequestError);
-
+    
             expect(authorizeHost).toHaveBeenCalledWith(loggedUser.role);
             expect(reservationRepositoryMock.getReservation).toHaveBeenCalledWith(reservationId);
         });
 
         it("should throw BadRequestError if reservation is cancelled", async () => {
             const loggedUser: LoggedUser = { username: "host", role: Role.HOST };
-            const reservationId = "reservationId";
-            const reservation = { accommodationId: "accommodationId", status: ReservationStatus.CANCELLED };
+            const reservationId = "123";
+            const reservation: Reservation = {
+                _id: new ObjectId(123),
+                accommodationId: "accommodationId",
+                username: "host",
+                startDate: new Date(),
+                endDate: new Date(),
+                price: 100,
+                status: ReservationStatus.CANCELLED,
+                guests: 5,
+                unitPrice: 100
+            };
+            const accommodationAvailability = {
+                accommodationId: "accommodationId",
+                ownerUsername: "host",
+                priceLevel: PriceLevel.perGuest,
+                location: "Your Location",
+                minCapacity: 1,
+                maxCapacity: 5,
+                confirmationNeeded: false
+            };
 
             (authorizeHost as jest.Mock).mockImplementation(() => {});
+
             reservationRepositoryMock.getReservation.mockResolvedValue(reservation as Reservation);
+            availabilityRepositoryMock.getAccommodation.mockResolvedValue(accommodationAvailability);
 
             await expect(reservationService.confirmReservation(loggedUser, reservationId))
                 .rejects
@@ -313,7 +364,7 @@ describe("ReservationService", () => {
         it("should authorize guest and cancel reservation", async () => {
             const loggedUser: LoggedUser = { username: "guest", role: Role.GUEST };
             const reservationId = "reservationId";
-            const reservation = { username: "guest", startDate: new Date(Date.now() + 86400000) } as Reservation; // tomorrow's date
+            const reservation = { username: "guest", startDate: new Date(Date.now() + 186400000) } as Reservation;
 
             (authorizeGuest as jest.Mock).mockImplementation(() => {});
             reservationRepositoryMock.getReservation.mockResolvedValue(reservation);

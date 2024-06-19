@@ -93,9 +93,6 @@ export class ReservationService {
 
     private async cancelReservationObj(reservation: Reservation) {
         const reservationId = reservation._id.toString();
-        if (!reservation) {
-            throw new NotFoundError(`Reservation not found for id: ${reservationId}`);
-        }
         if (reservation.status === ReservationStatus.CANCELLED) {
             throw new BadRequestError(`Reservation with id: ${reservationId} is already cancelled or rejected`);
         }
@@ -114,6 +111,9 @@ export class ReservationService {
     public async cancelReservation(loggedUser: LoggedUser, reservationId: string) {
         authorizeGuest(loggedUser.role);
         const reservation = await this.reservationRepository.getReservation(reservationId);
+        if (!reservation) {
+            throw new NotFoundError(`Reservation not found for id: ${reservationId}`);
+        }
         if (reservation.username !== loggedUser.username) {
             throw new ForbiddenError(`You are not allowed to cancel reservation with id: ${reservationId}`);
         }

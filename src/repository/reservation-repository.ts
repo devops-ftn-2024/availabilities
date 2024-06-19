@@ -33,7 +33,7 @@ export class ReservationRepository {
         this.reservationsCollection = this.client.db(this.database_name).collection(this.reservationsCollectionName);
     }
 
-    public insertNewReservation = async (reservation: Reservation) => {
+    public async insertNewReservation(reservation: Reservation) {
         const mongoReservation = {
             ...reservation,
             accommodationId: new ObjectId(reservation.accommodationId)
@@ -41,7 +41,7 @@ export class ReservationRepository {
         await this.reservationsCollection.insertOne(mongoReservation as WithId<MongoReservation>);
     }
 
-    public getReservations = async (username: string): Promise<Reservation[]> => {
+    public async getReservations(username: string): Promise<Reservation[]> {
         const reservations = await this.reservationsCollection.find({ username }).toArray();
         return reservations.map((reservation) => {
             return {
@@ -51,7 +51,7 @@ export class ReservationRepository {
         });
     }
 
-    public getAccommodationReservations = async (accommodationId: string): Promise<Reservation[]> => {
+    public async getAccommodationReservations(accommodationId: string): Promise<Reservation[]> {
         const reservations = await this.reservationsCollection.find({ accommodationId: new ObjectId(accommodationId) }).toArray();
         return reservations.map((reservation) => {
             return {
@@ -61,7 +61,7 @@ export class ReservationRepository {
         });
     }
 
-    public getReservation = async (reservationId: string): Promise<Reservation | null> => {
+    public async getReservation(reservationId: string): Promise<Reservation | null> {
         const reservation = await this.reservationsCollection.findOne({ _id: new ObjectId(reservationId) });
         if (!reservation) {
             return null;
@@ -72,7 +72,7 @@ export class ReservationRepository {
         }
     }
 
-    public getCancelReservationsWithinTimeframe = async (accommodationId: string, startDate: Date, endDate: Date): Promise<void> => {
+    public async getCancelReservationsWithinTimeframe(accommodationId: string, startDate: Date, endDate: Date): Promise<void> {
         //create aggregation to filter by accommodationId, startDate and endDate, if status is Pending set it to Cancelled
         const aggregation = [
             {
@@ -102,7 +102,7 @@ export class ReservationRepository {
         console.log('result cancel pending:', result)
     }
 
-    public updateReservationStatus = async (reservationId: string, status: ReservationStatus): Promise<void> => {
+    public async updateReservationStatus(reservationId: string, status: ReservationStatus): Promise<void> {
         const result = await this.reservationsCollection.updateOne(
             { _id: new ObjectId(reservationId) },
             {
