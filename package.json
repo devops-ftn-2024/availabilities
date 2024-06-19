@@ -49,6 +49,6 @@
         "transform": {
             "^.+\\.tsx?$": "babel-jest"
         },
-        "setupFiles": ["./jest.setup.js"]
+        "setupFiles": ["<rootDir>/jest.setup.js"]
     }
 }
