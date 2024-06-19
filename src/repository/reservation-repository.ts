@@ -3,6 +3,7 @@ import { AccommodationAvailability, Reservation, ReservationStatus } from "../ty
 import { UsernameDTO } from "../types/user";
 import { ReviewAccommodation, ReviewHost } from "../util/availability";
 import moment from "moment";
+import { Logger } from "../util/logger";
 
 interface MongoReservation extends Omit<Reservation,  '_id' | 'accommodationId'> {
     _id?: ObjectId;
@@ -44,6 +45,7 @@ export class ReservationRepository {
     }
 
     public async getReservations(username: string): Promise<Reservation[]> {
+        Logger.log(`Getting reservations for user ${username}`);
         const reservations = await this.reservationsCollection.find({ username }).toArray();
         return reservations.map((reservation) => {
             return {
@@ -54,7 +56,9 @@ export class ReservationRepository {
     }
 
     public async getAccommodationReservations(accommodationId: string): Promise<Reservation[]> {
+        Logger.log(`Getting reservations for accommodation ${accommodationId}`);
         const reservations = await this.reservationsCollection.find({ accommodationId: new ObjectId(accommodationId) }).toArray();
+        Logger.log(`Found ${reservations.length} reservations for accommodation ${accommodationId}`);
         return reservations.map((reservation) => {
             return {
                 ...reservation,
@@ -64,10 +68,12 @@ export class ReservationRepository {
     }
 
     public async getReservation(reservationId: string): Promise<Reservation | null> {
+        Logger.log(`Getting reservation with id ${reservationId}`);
         const reservation = await this.reservationsCollection.findOne({ _id: new ObjectId(reservationId) });
         if (!reservation) {
             return null;
         }
+        Logger.log(`Found reservation with id ${reservationId}`);
         return {
             ...reservation,
             accommodationId: reservation.accommodationId.toHexString()
@@ -75,7 +81,7 @@ export class ReservationRepository {
     }
 
     public async getCancelReservationsWithinTimeframe(accommodationId: string, startDate: Date, endDate: Date): Promise<void> {
-        //create aggregation to filter by accommodationId, startDate and endDate, if status is Pending set it to Cancelled
+        Logger.log(`Cancelling reservations for accommodation ${accommodationId} within timeframe ${startDate} - ${endDate}`);
         const aggregation = [
             {
                 $match: {
@@ -101,10 +107,11 @@ export class ReservationRepository {
         ]
 
         const result = await this.reservationsCollection.aggregate(aggregation).toArray();
-        console.log('result cancel pending:', result)
+        Logger.log(`result cancel pending: ${JSON.stringify(result)}`)
     }
 
     public async updateReservationStatus(reservationId: string, status: ReservationStatus): Promise<void> {
+        Logger.log(`Updating reservation with id ${reservationId} to status ${status}`);
         const result = await this.reservationsCollection.updateOne(
             { _id: new ObjectId(reservationId) },
             {
@@ -114,11 +121,14 @@ export class ReservationRepository {
             }
         );
         if (!result) {
+            Logger.error(`Reservation with id ${reservationId} not found`);
             throw new Error(`Reservation with id ${reservationId} not found`);
         }
+        Logger.log(`Updated reservation with id ${reservationId} to status ${status}`);
     }
 
     public async updateUsername(usernameDTO: UsernameDTO) {
+        Logger.log(`Updating username from ${usernameDTO.oldUsername} to ${usernameDTO.newUsername}`);
         const result = await this.reservationsCollection.updateMany(
             { username: usernameDTO.oldUsername },
             {
@@ -127,6 +137,7 @@ export class ReservationRepository {
                 }
             }
         );
+        Logger.log(`Updated ${result.modifiedCount} reservations`);
         return result.upsertedCount;
     }
 
