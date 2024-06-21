@@ -152,6 +152,53 @@ export class ReservationRepository {
         return result > 0;
     }
 
+    public async countFutureReservationsForGuest(username: string): Promise<number> {
+        const result = await this.reservationsCollection.countDocuments(
+            {
+                username,
+                status: ReservationStatus.CONFIRMED,
+                startDate: { $gte: moment.utc().toDate() }
+            }
+        );
+        return result;
+    }
+
+    public async countFutureReservationsForHost(username: string): Promise<number> {
+       const pipeline = [
+              {
+                $match: {
+                     status: ReservationStatus.CONFIRMED,
+                     startDate: { $gte: moment.utc().toDate() }
+                }
+              },
+              {
+                $lookup: {
+                     from: "accommodations",
+                     localField: "accommodationId",
+                     foreignField: "accommodationId",
+                     as: "accommodationDetails"
+                }
+              },
+              {
+                $unwind: "$accommodationDetails"
+              },
+              {
+                $match: {
+                    "accommodationDetails.ownerUsername": username
+                }
+            },
+            {
+                $count: "matchingReservations"
+            }
+         ];
+        const result = await this.reservationsCollection.aggregate(pipeline).toArray();
+        console.log(result)
+        if (result.length === 0 || !result[0].matchingReservations) {
+            return 0;
+        }
+        return result[0].matchingReservations ?? 0;
+    }
+
     public async checkIfUserStayedInHostAccommodation(reviewHost: ReviewHost): Promise<boolean> {
         const pipeline = [
             {
@@ -184,11 +231,21 @@ export class ReservationRepository {
         
         const result = await this.reservationsCollection.aggregate(pipeline).toArray();
         if (result.length > 0) {
-            console.log(`Count of matching reservations: ${result[0].matchingReservations}`);
+            Logger.log(`Count of matching reservations: ${result[0].matchingReservations}`);
             return result[0].matchingReservations > 0; 
         } else {
-            console.log("No matching reservations found.");
+            Logger.log("No matching reservations found.");
             return false;
         }
+    }
+
+    public async removeReservationsForUsername(username: string): Promise<void> {
+        Logger.log(`Removing reservations for username ${username}`);
+        const result = await this.reservationsCollection.deleteMany({ username });
+    }
+
+    public async removeReservationsForAccommodation(accommodationId: string): Promise<void> {
+        Logger.log(`Removing reservations for accommodation ${accommodationId}`);
+        const result = await this.reservationsCollection.deleteMany({ accommodationId: new ObjectId(accommodationId) });
     }
 }

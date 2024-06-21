@@ -58,6 +58,29 @@ export class EventQueue {
                         }
                     }, { noAck: true });
                 });
+
+                const exchangeNameDelete = 'user-deleted';
+                channel.assertExchange(exchangeNameDelete, 'fanout', { durable: true });
+    
+                channel.assertQueue('', { exclusive: true }, (error2, q) => {
+                    if (error2) {
+                        throw error2;
+                    }
+    
+                    channel.bindQueue(q.queue, exchangeNameDelete, '');
+    
+                    console.log(`Waiting for messages in ${q.queue}. To exit press CTRL+C`);
+    
+                    channel.consume(q.queue, (payload) => {
+                        console.log(`Deleting entities that have username: ${payload}`);
+                        if (payload !== null) {
+                            const username: string= JSON.parse(payload.content.toString()).username;
+                            console.log(`Deleting entities with username: ${JSON.stringify(username)}`);
+                            this.availabilityService.removeAccommodationAndAvailabilitiesForUsername(username);
+                            this.reservationService.removeReservationsForUsername(username);
+                        }
+                    }, { noAck: true });
+                });
             });
         });
     }

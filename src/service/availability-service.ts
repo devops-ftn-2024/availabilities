@@ -177,4 +177,9 @@ export class AvailabilityService {
         Logger.log(`Updating username: ${JSON.stringify(usernameDTO)}`);
         await this.repository.updateUsername(usernameDTO);
     }
+
+    public async removeAccommodationAndAvailabilitiesForUsername(username: string) {
+        Logger.log(`Removing accommodation and availabilities for username: ${username}`);
+        await this.repository.removeAccommodationAndAvailabilitiesForUsername(username);
+    }
 }

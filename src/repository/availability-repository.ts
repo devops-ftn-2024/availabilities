@@ -220,4 +220,9 @@ export class AvailabilityRepository {
         Logger.log(`Updated username from ${usernameDTO.oldUsername} to ${usernameDTO.newUsername}`);
         return result.upsertedCount;
     }
+
+    public async removeAccommodationAndAvailabilitiesForUsername(username: string): Promise<void> {
+      Logger.log(`Removing accommodation and availabilities for username: ${username}`);
+      await this.accommodationCollection.deleteMany({ 'ownerUsername': username });
+    }
   }
