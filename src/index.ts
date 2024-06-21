@@ -405,6 +405,20 @@ app.post('/reservations/delete/users', async (req, res) => {
   }
 });
 
+app.get('reservations/:id', async (req, res) => {
+  const reservationId = req.params.id;
+  Logger.log(`Getting reservation with id: ${reservationId}`);
+  try {
+      const reservation = await reservationService.getReservation(reservationId);
+      Logger.log(`Reservation retrieved with id: ${reservationId}`);
+      return res.json(reservation);
+  } catch (err) {
+    Logger.error(`Error getting reservation: ${(err as Error).stack}`)
+    const code = err instanceof CustomError ? err.code : 500;
+    return res.status(code).json({ message: (err as Error).message });
+  }
+});
+
 // preko rabbit mq: obrisi sve rezervacije i availability za smestaj
 
 app.listen(PORT, () => {

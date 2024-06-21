@@ -27,6 +27,11 @@ export class ReservationService {
         return await this.reservationRepository.getReservations(loggedUser.username);
     }
 
+    public async getReservation(reservationId: string) {
+        Logger.log(`Getting reservation with id: ${reservationId}`);
+        return await this.reservationRepository.getReservation(reservationId);
+    }
+
     public async createReservation(loggedUser: LoggedUser, accommodationId: string, reservation: Partial<Reservation>) {
         authorizeGuest(loggedUser.role);
         validateNewReservation(reservation);
