@@ -2,20 +2,23 @@ import moment from "moment";
 import { AvailabilityRepository } from "../repository/availability-repository";
 import { ReservationRepository } from "../repository/reservation-repository";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../types/errors";
-import { LoggedUser, UsernameDTO } from "../types/user";
+import { LoggedUser, Role, UsernameDTO } from "../types/user";
 import { authorizeGuest, authorizeHost } from "../util/auth";
 import { Availability, Reservation, ReservationStatus, Slot } from "../types/availability";
 import { extractDatesFromTimeframe, extractDatesWithPrices, ReviewAccommodation, ReviewHost } from "../util/availability";
 import { validateNewReservation } from "../util/validation";
 import { Logger } from "../util/logger";
+import { EmitEventQueue } from "../gateway/emit-event-queue";
 
 export class ReservationService {
     private availabilityRepository: AvailabilityRepository;
     private reservationRepository: ReservationRepository;
+    private eventQueueEmmiter = new EmitEventQueue();
 
     constructor() {
         this.availabilityRepository = new AvailabilityRepository();
         this.reservationRepository = new ReservationRepository();
+        this.eventQueueEmmiter = new EmitEventQueue();
     }
 
     public async getReservations(loggedUser: LoggedUser) {
@@ -148,6 +151,37 @@ export class ReservationService {
             throw new BadRequestError(`Reservation with id: ${reservationId} cannot be cancelled the day before the start date`);
         }
         await this.cancelReservationObj(reservation);
+    }
+
+    public async checkIfUserCanBeDeleted(loggedUser: LoggedUser) {
+        Logger.log(`Checking if user ${loggedUser.username} can be deleted`);
+        if (!loggedUser.username || !loggedUser.role) {
+            Logger.error(`User ${loggedUser.username} is not authorized to delete user ${loggedUser.username}`);
+            throw new ForbiddenError(`You are not allowed to delete user ${loggedUser.username}`);
+        }
+        if (loggedUser.role === Role.GUEST) {
+            const reservations = await this.reservationRepository.countFutureReservationsForGuest(loggedUser.username);
+            if (reservations > 0) {
+                Logger.error(`User ${loggedUser.username} has reservations and cannot be deleted`);
+                throw new BadRequestError(`User ${loggedUser.username} has reservations and cannot be deleted`);
+            }
+            Logger.log(`User ${loggedUser.username} can be deleted`);
+            this.eventQueueEmmiter.executeFanOut({ username: loggedUser.username }, 'user-deleted');
+        }
+        if (loggedUser.role === Role.HOST) {
+            const reservations = await this.reservationRepository.countFutureReservationsForHost(loggedUser.username);
+            if (reservations > 0) {
+                Logger.error(`User ${loggedUser.username} has reservations and cannot be deleted`);
+                throw new BadRequestError(`User ${loggedUser.username} has reservations and cannot be deleted`);
+            }
+            Logger.log(`User ${loggedUser.username} can be deleted`);
+            this.eventQueueEmmiter.executeFanOut({ username: loggedUser.username }, 'user-deleted');
+        }
+    }
+
+    public async removeReservationsForUsername(accommodationId: string) {
+        Logger.log(`Removing reservations for accommodationId: ${accommodationId}`);
+        await this.reservationRepository.removeReservationsForUsername(accommodationId);
     }
 
     private async checkAvailabilityOfAccommodation(availabilities: Availability[], startDate: moment.Moment, endDate: moment.Moment) {

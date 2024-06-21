@@ -23,7 +23,7 @@ const corsOptions = {
 
 const availabilityService = new AvailabilityService();
 const reservationService = new ReservationService();
-new EventQueue(availabilityService, reservationService);
+const eventQueue = new EventQueue(availabilityService, reservationService);
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -365,10 +365,10 @@ app.put('/reservations/:id/cancel', async (req, res) => {
 });
 
 app.post('/reservations/review/accommodation', async (req, res) => {
-  console.log(`Checking is guest can leave review on accommodation. Payload: ${JSON.stringify(req.body)}`);
+  Logger.log(`Checking is guest can leave review on accommodation. Payload: ${JSON.stringify(req.body)}`);
   try {
       const hasPermission = await reservationService.checkIfUserStayedInAccommodation(req.body);
-      console.log(`For accommodations has permission: ${hasPermission}`)
+      Logger.log(`For accommodations has permission: ${hasPermission}`)
       return res.json(hasPermission);
   } catch (err) {
     const code = err instanceof CustomError ? err.code : 500;
@@ -377,10 +377,10 @@ app.post('/reservations/review/accommodation', async (req, res) => {
 });
 
 app.post('/reservations/review/host', async (req, res) => {
-  console.log(`Checking is guest can leave review on host. Payload: ${JSON.stringify(req.body)}`);
+  Logger.log(`Checking is guest can leave review on host. Payload: ${JSON.stringify(req.body)}`);
   try {
       const hasPermission = await reservationService.checkIfUserStayedInHostAccommodation(req.body);
-      console.log(`For host has permission: ${hasPermission}`)
+      Logger.log(`For host has permission: ${hasPermission}`)
       return res.json(hasPermission);
   } catch (err) {
     const code = err instanceof CustomError ? err.code : 500;
@@ -388,6 +388,22 @@ app.post('/reservations/review/host', async (req, res) => {
   }
 });
 
+app.post('/reservations/delete/users', async (req, res) => {
+  const userData = req.headers.user;
+  try {
+    if (!userData) {
+      throw new NotFoundError('Logged user data not provided');
+    }
+    const loggedUserData: LoggedUser = JSON.parse(userData as string);
+    Logger.log(`Checking if user with username ${loggedUserData.username} can be deleted`);
+    const canDelete = await reservationService.checkIfUserCanBeDeleted(loggedUserData);
+    Logger.log(`User with username ${loggedUserData.username} can be deleted: ${canDelete}`);
+    return res.json(canDelete);
+  } catch (err) {
+    const code = err instanceof CustomError ? err.code : 500;
+    return res.status(code).json({ message: (err as Error).message });
+  }
+});
 
 // preko rabbit mq: obrisi sve rezervacije i availability za smestaj
 
