@@ -188,25 +188,25 @@ export class ReservationService {
                 await this.availabilityRepository.setAvailabilityAsInvalid(avaialibility._id.toString(), avaialibility.accommodationId);
             }
 
-            // avaiability 1-30 , reservation 1-15 -> avaialbility 15-30
+            // avaiability 1-30 , reservation 1-15 -> avaialbility 16-30
             else if (availabilityStartDate.isSame(startDate) && availabilityEndDate.isAfter(endDate)) {
                 Logger.log(`2) Updating availability: ${avaialibility._id.toString()} to ${startDate} - ${endDate}`);
-                await this.availabilityRepository.updateStartEndDate(avaialibility._id.toString(), avaialibility.accommodationId, endDate.toDate(), availabilityEndDate.toDate());
+                await this.availabilityRepository.updateStartEndDate(avaialibility._id.toString(), avaialibility.accommodationId, endDate.add(1, 'day').toDate(), availabilityEndDate.toDate());
             }
 
-            // avaiability 1-30 , reservation 15-30 -> avaialbility 1-15
+            // avaiability 1-30 , reservation 15-30 -> avaialbility 1-14
             else if (availabilityStartDate.isBefore(startDate) && availabilityEndDate.isSame(endDate)) {
                 Logger.log(`3) Updating availability: ${avaialibility._id.toString()} to ${startDate} - ${endDate}`);
-                await this.availabilityRepository.updateStartEndDate(avaialibility._id.toString(), avaialibility.accommodationId, availabilityStartDate.toDate(), startDate.toDate());
+                await this.availabilityRepository.updateStartEndDate(avaialibility._id.toString(), avaialibility.accommodationId, availabilityStartDate.toDate(), startDate.subtract(1, 'day').toDate());
             }
 
-            // avaiability 1-30 , reservation 15-20 -> avaialbility 1-15, 20-30
+            // avaiability 1-30 , reservation 15-20 -> avaialbility 1-14, 21-30
             else if (availabilityStartDate.isBefore(startDate) && availabilityEndDate.isAfter(endDate)) {
                 Logger.log(`4) Updating availability: ${avaialibility._id.toString()} to ${startDate} - ${endDate} and creating new availability for ${endDate} - ${availabilityEndDate}`);
-                await this.availabilityRepository.updateStartEndDate(avaialibility._id.toString(), avaialibility.accommodationId, availabilityStartDate.toDate(), startDate.toDate());
+                await this.availabilityRepository.updateStartEndDate(avaialibility._id.toString(), avaialibility.accommodationId, availabilityStartDate.toDate(), startDate.subtract(1, 'day').toDate());
                 const newAvailability: Availability = {
                     accommodationId: avaialibility.accommodationId,
-                    startDate: endDate.toDate(),
+                    startDate: endDate.add(1, 'day').toDate(),
                     endDate: availabilityEndDate.toDate(),
                     price: avaialibility.price,
                     dateCreated: new Date(),
@@ -215,16 +215,16 @@ export class ReservationService {
                 await this.availabilityRepository.insertNewAvailability(newAvailability);
             }
 
-            // availability 1-30, availability 30-15, reservation 20-10 -> prvi availability 1-20
+            // availability 1-30, availability 30-15, reservation 20-10 -> prvi availability 1-19
             else if (availabilityStartDate.isBefore(startDate) && availabilityEndDate.isBefore(endDate)) {
                 Logger.log(`5) Updating availability: ${avaialibility._id.toString()} to ${startDate} - ${availabilityEndDate}`);
-                await this.availabilityRepository.updateStartEndDate(avaialibility._id.toString(), avaialibility.accommodationId, availabilityStartDate.toDate(), startDate.toDate());
+                await this.availabilityRepository.updateStartEndDate(avaialibility._id.toString(), avaialibility.accommodationId, availabilityStartDate.toDate(), startDate.subtract(1, 'day').toDate());
             }
 
-            // availability 1-30, availability 30-15, reservation 20-10 -> drugi availability 10-15
+            // availability 1-30, availability 30-15, reservation 20-10 -> drugi availability 11-15
             else if (availabilityStartDate.isAfter(startDate) && availabilityEndDate.isAfter(endDate)) {
                 Logger.log(`6) Updating availability: ${avaialibility._id.toString()} to ${endDate} - ${availabilityEndDate}`);
-                await this.availabilityRepository.updateStartEndDate(avaialibility._id.toString(), avaialibility.accommodationId, endDate.toDate(), availabilityEndDate.toDate());
+                await this.availabilityRepository.updateStartEndDate(avaialibility._id.toString(), avaialibility.accommodationId, endDate.add(1, 'day').toDate(), availabilityEndDate.toDate());
             }
 
             //availability 1-10 availability 10-20 availability 20-30, reservation 5-25 -> drugi invalid
