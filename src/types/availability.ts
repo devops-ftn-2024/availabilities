@@ -1,23 +1,26 @@
 import { ObjectId } from "mongodb";
 
 export interface AccommodationAvailability {
-    _id?: string;
+    _id?: string | ObjectId;
     accommodationId: string;
     ownerUsername: string;
     priceLevel: PriceLevel;
     location: string;
     minCapacity: number;
     maxCapacity: number;
+    confirmationNeeded: boolean;
 }
 
 export interface Reservation {
-    _id?: string;
+    _id?: string | ObjectId;
     accommodationId: string;
     username: string;
     startDate: Date;
     endDate: Date;
     price: number;
+    unitPrice: number;
     status: ReservationStatus;
+    guests: number;
 }
 
 export interface Availability {
@@ -39,7 +42,12 @@ export enum ReservationStatus {
     PENDING = 'Pending',
     CONFIRMED = 'Confirmed',
     CANCELLED = 'Cancelled',
-    REJECTED = 'Rejected'
+}
+
+export interface Slot {
+    date: string;
+    price: number;
+
 }
 
 export type AvailabilityUpdate =  Partial<Availability>;

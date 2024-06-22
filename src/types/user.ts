@@ -7,3 +7,8 @@ export enum Role {
     HOST = 'Host',
     GUEST = 'Guest',
 }
+
+export interface UsernameDTO {
+    oldUsername: string;
+    newUsername: string;
+}
